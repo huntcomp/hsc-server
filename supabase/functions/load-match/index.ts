@@ -8,9 +8,18 @@ serve(async (req) => {
   const data: Record<string, string> = {};
 
   if (req.body) {
-    const f = req.body.pipeThrough(new TextDecoderStream()).pipeThrough(new TextLineStream());
+    const f = req.body.pipeThrough(new TextDecoderStream()).pipeThrough(
+      new TextLineStream(),
+    );
     for await (const l of f) {
-      if (typeof l === 'string' && l.includes('MissionBagPlayer_')) {
+      if (
+        typeof l === "string" &&
+        (l.includes("MissionBagPlayer_") || l.includes("MissionBagTeam_") ||
+          l.includes("MissionBagNumTeams") ||
+          l.includes("MissionBagNumEntries") ||
+          l.includes("MissionBagIsQuickPlay") ||
+          l.includes("MissionBagIsHunterDead"))
+      ) {
         const name = nre.exec(l);
         const value = vre.exec(l);
         if (name?.[0] != null && value?.[0] != null) {
@@ -20,5 +29,5 @@ serve(async (req) => {
     }
   }
 
-  return new Response(JSON.stringify(data));
+  return new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' } });
 });
