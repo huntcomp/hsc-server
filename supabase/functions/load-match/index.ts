@@ -1,5 +1,15 @@
 import { serve } from "https://deno.land/std@0.176.0/http/server.ts";
 import { TextLineStream } from "https://deno.land/std@0.176.0/streams/mod.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+/*
+  Whole file is just a prototype,
+  please do not judge!
+
+  FIXME: Benny, refactor everything.
+  Benny: What do you mean "everything"?
+  EVERYTHING!
+*/
 
 const nre = new RegExp('(?<=name=")[^"]*');
 const vre = new RegExp('(?<=value=")[^"]*');
@@ -31,6 +41,13 @@ function setValue(obj: any, path: string, value: any) {
 }
 
 serve(async (req) => {
+  const user = req.headers.get('X-User');
+  const playedAs = req.headers.get('X-Played-As');
+
+  if (user == null || playedAs == null) {
+    throw new Error('Incorrect payload');
+  }
+
   const data: {
     numTeams: number;
     isQuickplay: boolean;
@@ -89,7 +106,83 @@ serve(async (req) => {
 
   data.teams.splice(data.numTeams);
 
-  return new Response(JSON.stringify(data), {
+  const created_at = new Date().toISOString();
+  
+  const game: {
+    mmr: number;
+    bounty_picked_up: number;
+    bounty_extracted: number;
+    team_extraction: boolean;
+    avg_mmr: number;
+    user_id: string;
+    created_at: string;
+  } = {
+    mmr: 0,
+    bounty_picked_up: 0,
+    bounty_extracted: 0,
+    team_extraction: false,
+    avg_mmr: 0,
+    user_id: user,
+    created_at,
+  };
+
+  const showdowns: {
+    profileid: string;
+    name: string;
+    mmr: number;
+    killed_by_me: number;
+    killed_me: number;
+    had_bounty: boolean;
+  }[] = [];
+
+  let players = 0;
+
+  for (const t of data.teams) {
+    for (const p of t.players) {
+      game.avg_mmr += +p.mmr;
+      players += 1;
+
+      if (t.ownteam === 'true') {
+        game.bounty_extracted += +p.bountyextracted;
+        game.bounty_picked_up += +p.bountypickedup;
+      }
+
+      if (p.blood_line_name === playedAs) {
+        game.mmr = +p.mmr;
+        game.team_extraction = p.teamextraction === 'true';
+      }
+
+      if (p.killedme != '0' || p.killedbyme != '0' || p.downedme != '0' || p.downedbyme != '0') {
+        showdowns.push({
+          name: p.blood_line_name,
+          profileid: p.profileid,
+          mmr: +p.mmr,
+          killed_by_me: +p.killedbyme + +p.downedbyme,
+          killed_me: +p.killedme + +p.downedme,
+          had_bounty: p.hadbounty === 'true'
+        })
+      }
+    }
+  }
+
+  game.avg_mmr = Math.round(game.avg_mmr / players);
+
+
+  const supabaseClient = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+    { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+  );
+
+  const g = await supabaseClient.from('games').insert(game).select('id').maybeSingle().then(_ => _.data?.id);
+
+  await supabaseClient.from('showdowns').insert(showdowns.map((_) => Object.assign({
+    user_id: user,
+    game_id: g,
+    created_at,
+  }, _))).then(console.log);
+
+  return new Response(JSON.stringify({game, showdowns}), {
     headers: { "Content-Type": "application/json" },
   });
 });
