@@ -48,7 +48,7 @@ serve(async (req) => {
     throw new Error("Incorrect payload");
   }
 
-  const data: {
+    const data: {
     numTeams: number;
     isQuickplay: boolean;
     teams: any[];
@@ -138,7 +138,8 @@ serve(async (req) => {
   let players = 0;
 
   for (const t of data.teams) {
-    for (const p of t.players) {
+    for (let i = 0; i < +t.numplayers; i++) {
+      const p = t.players[i];
       game.avg_mmr += +p.mmr;
       players += 1;
 
