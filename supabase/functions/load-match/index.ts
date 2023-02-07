@@ -41,14 +41,33 @@ function setValue(obj: any, path: string, value: any) {
 }
 
 serve(async (req) => {
-  const user = req.headers.get("X-User");
+  if (req.headers.get("Authorization") == null) {
+    throw new Error("Requires authorization");
+  }
+
+  const supabaseClient = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+    {
+      global: { headers: { Authorization: req.headers.get("Authorization")! } },
+    },
+  );
+
+  const {
+    data: { user },
+  } = await supabaseClient.auth.getUser();
+
+  if (user == null) {
+    throw new Error("Requires authorization");
+  }
+
   const playedAs = req.headers.get("X-Played-As");
 
-  if (user == null || playedAs == null) {
+  if (playedAs == null) {
     throw new Error("Incorrect payload");
   }
 
-    const data: {
+  const data: {
     numTeams: number;
     isQuickplay: boolean;
     teams: any[];
@@ -122,7 +141,7 @@ serve(async (req) => {
     bounty_extracted: 0,
     team_extraction: false,
     avg_mmr: 0,
-    user_id: user,
+    user_id: user.id,
     created_at,
   };
 
@@ -171,26 +190,18 @@ serve(async (req) => {
 
   game.avg_mmr = Math.round(game.avg_mmr / players);
 
-  const supabaseClient = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-    {
-      global: { headers: { Authorization: req.headers.get("Authorization")! } },
-    },
-  );
-
   const g = await supabaseClient.from("games").insert(game).select("id")
     .maybeSingle().then((_) => _.data?.id);
 
   await supabaseClient.from("showdowns").insert(
     showdowns.map((_) =>
       Object.assign({
-        user_id: user,
+        user_id: user.id,
         game_id: g,
         created_at,
       }, _)
     ),
-  ).then(console.log);
+  );
 
   return new Response(JSON.stringify({ game, showdowns }), {
     headers: { "Content-Type": "application/json" },
