@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.176.0/http/server.ts";
 import { TextLineStream } from "https://deno.land/std@0.176.0/streams/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { AttributesParser } from "./attributes_parser/mod.ts";
 
 /*
   Whole file is just a prototype,
@@ -10,35 +11,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
   Benny: What do you mean "everything"?
   EVERYTHING!
 */
-
-const nre = new RegExp('(?<=name=")[^"]*');
-const vre = new RegExp('(?<=value=")[^"]*');
-const pre = new RegExp("(?<=MissionBagPlayer_)([^_]*)_([^_]*)_(.*)");
-const tre = new RegExp("(?<=MissionBagTeam_)([^_]*)_(.*)");
-
-function parseAttr(s: string) {
-  const name = nre.exec(s);
-  const value = vre.exec(s);
-  if (name?.[0] != null && value?.[0] != null) {
-    return { name: name[0], value: value[0] };
-  }
-}
-
-function setValue(obj: any, path: string, value: any) {
-  const pathArray = path.split(".");
-  let current: any = obj;
-
-  for (let i = 0; i < pathArray.length - 1; i++) {
-    const key = pathArray[i];
-    if (!current[key]) {
-      current[key] = isNaN(Number(pathArray[i + 1])) ? {} : [];
-    }
-    current = current[key];
-  }
-
-  current[pathArray[pathArray.length - 1]] = value;
-  return obj;
-}
 
 serve(async (req) => {
   if (req.headers.get("Authorization") == null) {
@@ -67,15 +39,9 @@ serve(async (req) => {
     throw new Error("Incorrect payload");
   }
 
-  const data: {
-    numTeams: number;
-    isQuickplay: boolean;
-    teams: any[];
-  } = {
-    teams: [],
-    isQuickplay: false,
-    numTeams: 0,
-  };
+  console.log(`Logged as ${user.email} and played as ${playedAs}`);
+
+  const parser = new AttributesParser();
 
   if (req.body) {
     const f = req.body.pipeThrough(new TextDecoderStream()).pipeThrough(
@@ -83,47 +49,11 @@ serve(async (req) => {
     );
 
     for await (const l of f) {
-      if (typeof l === "string" && l.includes("MissionBagPlayer_")) {
-        const v = parseAttr(l);
-        if (v != null) {
-          const m = pre.exec(v.name);
-          if (m?.length === 4) {
-            const [_, team, player, stat] = m;
-            setValue(data.teams, `${team}.players.${player}.${stat}`, v.value);
-          }
-        }
-      }
-
-      if (typeof l === "string" && l.includes("MissionBagTeam_")) {
-        const v = parseAttr(l);
-        if (v != null) {
-          if (v != null) {
-            const m = tre.exec(v.name);
-            if (m?.length === 3) {
-              const [_, team, stat] = m;
-              setValue(data.teams, `${team}.${stat}`, v.value);
-            }
-          }
-        }
-      }
-
-      if (typeof l === "string" && l.includes("MissionBagNumTeams")) {
-        const v = parseAttr(l);
-        if (v != null) {
-          data.numTeams = +v.value;
-        }
-      }
-
-      if (typeof l === "string" && l.includes("MissionBagIsQuickPlay")) {
-        const v = parseAttr(l);
-        if (v != null) {
-          data.isQuickplay = v.value === "true";
-        }
-      }
+      parser.parseLine(l);
     }
   }
 
-  data.teams.splice(data.numTeams);
+  const data = parser.finalize();
 
   const created_at = new Date().toISOString();
 
@@ -157,32 +87,31 @@ serve(async (req) => {
   let players = 0;
 
   for (const t of data.teams) {
-    for (let i = 0; i < +t.numplayers; i++) {
+    for (let i = 0; i < +t.numPlayers; i++) {
       const p = t.players[i];
-      game.avg_mmr += +p.mmr;
+      game.avg_mmr += p.mmr;
       players += 1;
 
-      if (t.ownteam === "true") {
-        game.bounty_extracted += +p.bountyextracted;
-        game.bounty_picked_up += +p.bountypickedup;
+      if (t.ownTeam) {
+        game.bounty_extracted += p.bountyExtracted;
+        game.bounty_picked_up += p.bountyPickedUp;
       }
 
-      if (p.blood_line_name === playedAs) {
-        game.mmr = +p.mmr;
-        game.team_extraction = p.teamextraction === "true";
+      if (p.bloodLineName === playedAs) {
+        game.mmr = p.mmr;
+        game.team_extraction = p.teamExtraction;
       }
 
       if (
-        p.killedme != "0" || p.killedbyme != "0" || p.downedme != "0" ||
-        p.downedbyme != "0"
+        p.killedMe + p.killedByMe + p.downedMe + p.downedByMe > 0
       ) {
         showdowns.push({
-          name: p.blood_line_name,
+          name: p.bloodLineName,
           profileid: p.profileid,
-          mmr: +p.mmr,
-          killed_by_me: +p.killedbyme + +p.downedbyme,
-          killed_me: +p.killedme + +p.downedme,
-          had_bounty: p.hadbounty === "true",
+          mmr: p.mmr,
+          killed_by_me: p.killedByMe + p.downedByMe,
+          killed_me: p.killedMe + p.downedMe,
+          had_bounty: p.hadBounty,
         });
       }
     }
