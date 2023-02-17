@@ -51,7 +51,7 @@ Deno.test("attributes_parser (sample_1) test", async (t) => {
         {
           "players": [
             {
-              "bloodLineName": "FUCKING NOOT NOOT",
+              "name": "FUCKING NOOT NOOT",
               "bountyExtracted": 0,
               "bountyPickedUp": 0,
               "downedByMe": 0,
@@ -65,7 +65,7 @@ Deno.test("attributes_parser (sample_1) test", async (t) => {
               "mmr": 2743,
             },
             {
-              "bloodLineName": "Aaskereia",
+              "name": "Aaskereia",
               "bountyExtracted": 0,
               "bountyPickedUp": 0,
               "downedByMe": 0,
@@ -87,7 +87,7 @@ Deno.test("attributes_parser (sample_1) test", async (t) => {
         {
           "players": [
             {
-              "bloodLineName": "0x4721",
+              "name": "0x4721",
               "bountyExtracted": 2,
               "bountyPickedUp": 2,
               "downedByMe": 0,
@@ -101,7 +101,7 @@ Deno.test("attributes_parser (sample_1) test", async (t) => {
               "mmr": 2879,
             },
             {
-              "bloodLineName": "Chlebeg",
+              "name": "Chlebeg",
               "bountyExtracted": 2,
               "bountyPickedUp": 2,
               "downedByMe": 0,
@@ -123,7 +123,7 @@ Deno.test("attributes_parser (sample_1) test", async (t) => {
         {
           "players": [
             {
-              "bloodLineName": "Crow511",
+              "name": "Crow511",
               "bountyExtracted": 0,
               "bountyPickedUp": 0,
               "downedByMe": 0,
@@ -137,7 +137,7 @@ Deno.test("attributes_parser (sample_1) test", async (t) => {
               "mmr": 2822,
             },
             {
-              "bloodLineName": "JokerTowelie",
+              "name": "JokerTowelie",
               "bountyExtracted": 0,
               "bountyPickedUp": 0,
               "downedByMe": 0,
@@ -159,7 +159,7 @@ Deno.test("attributes_parser (sample_1) test", async (t) => {
         {
           "players": [
             {
-              "bloodLineName": "Henker",
+              "name": "Henker",
               "bountyExtracted": 0,
               "bountyPickedUp": 0,
               "downedByMe": 0,
@@ -173,7 +173,7 @@ Deno.test("attributes_parser (sample_1) test", async (t) => {
               "mmr": 2767,
             },
             {
-              "bloodLineName": "Sir Rührgerät Maximale Stufe",
+              "name": "Sir Rührgerät Maximale Stufe",
               "bountyExtracted": 0,
               "bountyPickedUp": 0,
               "downedByMe": 0,
@@ -195,7 +195,7 @@ Deno.test("attributes_parser (sample_1) test", async (t) => {
         {
           "players": [
             {
-              "bloodLineName": "Filip",
+              "name": "Filip",
               "bountyExtracted": 0,
               "bountyPickedUp": 1,
               "downedByMe": 0,
@@ -209,7 +209,7 @@ Deno.test("attributes_parser (sample_1) test", async (t) => {
               "mmr": 2819,
             },
             {
-              "bloodLineName": "O_Cadela",
+              "name": "O_Cadela",
               "bountyExtracted": 0,
               "bountyPickedUp": 1,
               "downedByMe": 0,
@@ -231,7 +231,7 @@ Deno.test("attributes_parser (sample_1) test", async (t) => {
         {
           "players": [
             {
-              "bloodLineName": "Ripakosss",
+              "name": "Ripakosss",
               "bountyExtracted": 0,
               "bountyPickedUp": 1,
               "downedByMe": 0,
@@ -245,7 +245,7 @@ Deno.test("attributes_parser (sample_1) test", async (t) => {
               "mmr": 2772,
             },
             {
-              "bloodLineName": "Aggeloukos",
+              "name": "Aggeloukos",
               "bountyExtracted": 0,
               "bountyPickedUp": 1,
               "downedByMe": 0,

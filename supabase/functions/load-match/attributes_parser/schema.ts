@@ -39,7 +39,7 @@ const va = {
 export function PlayerSchema(_: Record<string, string>) {
   try {
     return {
-      bloodLineName: va.string(_, "blood_line_name"),
+      name: unescapeBloodLineName(va.string(_, "blood_line_name")),
       bountyExtracted: va.number(_, "bountyextracted"),
       bountyPickedUp: va.number(_, "bountypickedup"),
       downedByMe: va.number(_, "downedbyme"),
@@ -76,4 +76,12 @@ export function TeamSchema(_: Record<string, string>) {
     });
     throw e;
   }
+}
+
+export function unescapeBloodLineName(s: string) {
+  return s.replaceAll("&quot", '"')
+    .replaceAll("&amp", "&")
+    .replaceAll("&apos", "'")
+    .replaceAll("&lt", "<")
+    .replaceAll("&gt", ">");
 }

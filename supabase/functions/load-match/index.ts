@@ -97,7 +97,7 @@ serve(async (req) => {
         game.bounty_picked_up += p.bountyPickedUp;
       }
 
-      if (p.bloodLineName === playedAs) {
+      if (p.name === playedAs) {
         game.mmr = p.mmr;
         game.team_extraction = p.teamExtraction;
       }
@@ -106,7 +106,7 @@ serve(async (req) => {
         p.killedMe + p.killedByMe + p.downedMe + p.downedByMe > 0
       ) {
         showdowns.push({
-          name: p.bloodLineName,
+          name: p.name,
           profileid: p.profileid,
           mmr: p.mmr,
           killed_by_me: p.killedByMe + p.downedByMe,
