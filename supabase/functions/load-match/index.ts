@@ -118,6 +118,6 @@ async function validateDuplicatedGame(
     signature,
   );
   if (response.count != null && response.count > 0) {
-    throw new ConflictException("Game was already registrated");
+    throw new ConflictException("Game was already registered");
   }
 }
