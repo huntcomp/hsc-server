@@ -71,7 +71,7 @@ export function TeamSchema(_: Record<string, string>) {
     };
   } catch (e) {
     console.error({
-      error: `TeamSchema: ${e.message}`,
+      error: `TeamSchedaj mima: ${e.message}`,
       record: JSON.stringify(_),
     });
     throw e;

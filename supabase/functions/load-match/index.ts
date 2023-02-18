@@ -55,9 +55,20 @@ serve(async (req) => {
 
   const data = parser.finalize();
 
+  if (
+    ((await supabaseClient.from("games").select("id", { head: true, count: "exact" }).filter(
+      "signature",
+      "eq",
+      data.signature,
+    )).count) ?? 0 > 0
+  ) {
+    return new Response("Duplicate game", { status: 409 });
+  }
+
   const created_at = new Date().toISOString();
 
   const game: {
+    signature: string;
     mmr: number;
     bounty_picked_up: number;
     bounty_extracted: number;
@@ -66,6 +77,7 @@ serve(async (req) => {
     user_id: string;
     created_at: string;
   } = {
+    signature: data.signature,
     mmr: 0,
     bounty_picked_up: 0,
     bounty_extracted: 0,
