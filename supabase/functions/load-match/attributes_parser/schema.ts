@@ -61,6 +61,8 @@ export function PlayerSchema(_: Record<string, string>) {
   }
 }
 
+export type Player = ReturnType<typeof PlayerSchema>;
+
 export function TeamSchema(_: Record<string, string>) {
   try {
     return {
@@ -77,6 +79,8 @@ export function TeamSchema(_: Record<string, string>) {
     throw e;
   }
 }
+
+export type Team = ReturnType<typeof TeamSchema>;
 
 export function unescapeBloodLineName(s: string) {
   return s.replaceAll("&quot", '"')

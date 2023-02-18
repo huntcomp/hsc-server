@@ -1,150 +1,123 @@
 import { serve } from "https://deno.land/std@0.176.0/http/server.ts";
 import { TextLineStream } from "https://deno.land/std@0.176.0/streams/mod.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { AttributesParser } from "./attributes_parser/mod.ts";
-
-/*
-  Whole file is just a prototype,
-  please do not judge!
-
-  FIXME: Benny, refactor everything.
-  Benny: What do you mean "everything"?
-  EVERYTHING!
-*/
+import { authenticate } from "./authenticate.ts";
+import {
+  BadRequestException,
+  ConflictException,
+  ResponseException,
+} from "./errors.ts";
+import { analyseGame } from "./game_analyser/mod.ts";
+import { createJSONResponse } from "./utils.ts";
 
 serve(async (req) => {
-  if (req.headers.get("Authorization") == null) {
-    throw new Error("Requires authorization");
+  try {
+    const { user, supabaseClient } = await authenticate(req);
+    const playedAs = getPlayedAs(req);
+    console.info(`Authenticated as ${user.email} and played as ${playedAs}`);
+
+    const attributes = await parseAttributesFileFromBody(req);
+    await validateDuplicatedGame(attributes.signature, supabaseClient);
+
+    const { game, showdowns } = analyseGame(attributes, playedAs);
+
+    const timestamp = new Date().toISOString();
+    const gameId = await supabaseClient
+      .from("games")
+      .insert({
+        created_at: timestamp,
+        bounty_picked_up: game.bountyPickedUp,
+        bounty_extracted: game.bountyExtracted,
+        mmr: game.mmr,
+        team_extraction: game.teamExtraction,
+        user_id: user.id,
+        avg_mmr: game.avgMmr,
+        signature: attributes.signature,
+      })
+      .select("id")
+      .maybeSingle()
+      .then((_) => _.data?.id);
+
+    await supabaseClient.from("showdowns").insert(
+      showdowns.map((_) => ({
+        created_at: timestamp,
+        profileid: _.profileid,
+        name: _.name,
+        mmr: _.mmr,
+        killed_by_me: _.killedByMe,
+        killed_me: _.killedMe,
+        game_id: gameId,
+        user_id: user.id,
+        had_bounty: _.hadBounty,
+      })),
+    );
+
+    return createJSONResponse({
+      game,
+      showdowns,
+      signature: attributes.signature,
+    });
+  } catch (e) {
+    if (e instanceof ResponseException) {
+      return createJSONResponse({
+        message: e.message,
+      }, e.status);
+    } else {
+      console.error(e);
+      return createJSONResponse({ message: "Internal server error" }, 500);
+    }
   }
+});
 
-  const supabaseClient = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-    {
-      global: { headers: { Authorization: req.headers.get("Authorization")! } },
-    },
-  );
-
-  const {
-    data: { user },
-  } = await supabaseClient.auth.getUser();
-
-  if (user == null) {
-    throw new Error("Requires authorization");
-  }
-
+function getPlayedAs(req: Request) {
   const playedAs = req.headers.get("X-Played-As");
 
   if (playedAs == null) {
-    throw new Error("Incorrect payload");
+    throw new BadRequestException("Request is missing `X-Played-As` header");
   }
 
-  console.log(`Logged as ${user.email} and played as ${playedAs}`);
+  return playedAs;
+}
 
-  const parser = new AttributesParser();
-
-  if (req.body) {
-    const f = req.body.pipeThrough(new TextDecoderStream()).pipeThrough(
-      new TextLineStream(),
+async function parseAttributesFileFromBody(req: Request) {
+  if (req.body == null) {
+    throw new BadRequestException(
+      "Request is missing body (valid attributes.xml file)",
     );
+  }
 
-    for await (const l of f) {
+  try {
+    const parser = new AttributesParser();
+    for await (
+      const l of req.body
+        .pipeThrough(new TextDecoderStream())
+        .pipeThrough(new TextLineStream())
+    ) {
       parser.parseLine(l);
     }
+
+    return parser.finalize();
+  } catch (e) {
+    throw new BadRequestException(
+      e.message ?? e,
+    );
   }
+}
 
-  const data = parser.finalize();
-
-  if (
-    ((await supabaseClient.from("games").select("id", { head: true, count: "exact" }).filter(
-      "signature",
-      "eq",
-      data.signature,
-    )).count) ?? 0 > 0
-  ) {
-    return new Response("Duplicate game", { status: 409 });
-  }
-
-  const created_at = new Date().toISOString();
-
-  const game: {
-    signature: string;
-    mmr: number;
-    bounty_picked_up: number;
-    bounty_extracted: number;
-    team_extraction: boolean;
-    avg_mmr: number;
-    user_id: string;
-    created_at: string;
-  } = {
-    signature: data.signature,
-    mmr: 0,
-    bounty_picked_up: 0,
-    bounty_extracted: 0,
-    team_extraction: false,
-    avg_mmr: 0,
-    user_id: user.id,
-    created_at,
-  };
-
-  const showdowns: {
-    profileid: string;
-    name: string;
-    mmr: number;
-    killed_by_me: number;
-    killed_me: number;
-    had_bounty: boolean;
-  }[] = [];
-
-  let players = 0;
-
-  for (const t of data.teams) {
-    for (let i = 0; i < +t.numPlayers; i++) {
-      const p = t.players[i];
-      game.avg_mmr += p.mmr;
-      players += 1;
-
-      if (t.ownTeam) {
-        game.bounty_extracted += p.bountyExtracted;
-        game.bounty_picked_up += p.bountyPickedUp;
-      }
-
-      if (p.name === playedAs) {
-        game.mmr = p.mmr;
-        game.team_extraction = p.teamExtraction;
-      }
-
-      if (
-        p.killedMe + p.killedByMe + p.downedMe + p.downedByMe > 0
-      ) {
-        showdowns.push({
-          name: p.name,
-          profileid: p.profileid,
-          mmr: p.mmr,
-          killed_by_me: p.killedByMe + p.downedByMe,
-          killed_me: p.killedMe + p.downedMe,
-          had_bounty: p.hadBounty,
-        });
-      }
-    }
-  }
-
-  game.avg_mmr = Math.round(game.avg_mmr / players);
-
-  const g = await supabaseClient.from("games").insert(game).select("id")
-    .maybeSingle().then((_) => _.data?.id);
-
-  await supabaseClient.from("showdowns").insert(
-    showdowns.map((_) =>
-      Object.assign({
-        user_id: user.id,
-        game_id: g,
-        created_at,
-      }, _)
-    ),
+async function validateDuplicatedGame(
+  signature: string,
+  supabaseClient: SupabaseClient,
+) {
+  const response = await supabaseClient.from("games").select("id", {
+    head: true,
+    count: "exact",
+  }).filter(
+    "signature",
+    "eq",
+    signature,
   );
-
-  return new Response(JSON.stringify({ game, showdowns }), {
-    headers: { "Content-Type": "application/json" },
-  });
-});
+  if (response.count != null && response.count > 0) {
+    throw new ConflictException("Game was already registrated");
+  }
+}

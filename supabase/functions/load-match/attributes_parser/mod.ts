@@ -7,6 +7,8 @@ import {
 import { PlayerSchema, TeamSchema } from "./schema.ts";
 import { sha256 } from "https://denopkg.com/chiefbiiko/sha256@v1.0.0/mod.ts";
 
+export type ParsedAttributes = ReturnType<AttributesParser["finalize"]>;
+
 export class AttributesParser {
   private data: {
     numTeams: number;
@@ -45,6 +47,7 @@ export class AttributesParser {
     } catch (e) {
       if (!(e instanceof PassException)) {
         console.error({ error: e.message, line: this.lineCount, content: _l });
+        throw e;
       }
     }
     this.lineCount++;
@@ -53,8 +56,6 @@ export class AttributesParser {
   finalize() {
     this.seal = true;
     this.signature = sha256(this.signature, "utf8", "hex").toString();
-
-    console.log(this.signature);
 
     return {
       mode: this.data.mode,
