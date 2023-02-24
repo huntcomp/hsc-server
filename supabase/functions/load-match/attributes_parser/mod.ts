@@ -5,7 +5,6 @@ import {
   scanMissionBagTeamAttributeName,
 } from "./scanners.ts";
 import { PlayerSchema, TeamSchema } from "./schema.ts";
-import { sha256 } from "https://denopkg.com/chiefbiiko/sha256@v1.0.0/mod.ts";
 
 export type ParsedAttributes = ReturnType<AttributesParser["finalize"]>;
 
@@ -23,7 +22,6 @@ export class AttributesParser {
     numTeams: 0,
   };
 
-  private signature = "";
   private lineCount = 1;
   private seal = false;
 
@@ -35,7 +33,6 @@ export class AttributesParser {
     const _l = l.trim();
     try {
       if (_l.includes("MissionBagPlayer_")) {
-        this.signature += _l;
         this.parseMissionBagPlayer(_l);
       } else if (_l.includes("MissionBagTeam_")) {
         this.parseMissionBagTeam(_l);
@@ -55,7 +52,6 @@ export class AttributesParser {
 
   finalize() {
     this.seal = true;
-    this.signature = sha256(this.signature, "utf8", "hex").toString();
 
     return {
       mode: this.data.mode,
@@ -67,7 +63,6 @@ export class AttributesParser {
           ...team,
         });
       }),
-      signature: this.signature,
     };
   }
 

@@ -1,5 +1,5 @@
 export function createJSONResponse(
-// deno-lint-ignore no-explicit-any
+  // deno-lint-ignore no-explicit-any
   body: any,
   status = 200,
   init: ResponseInit = {},

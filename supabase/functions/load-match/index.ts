@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.176.0/http/server.ts";
 import { TextLineStream } from "https://deno.land/std@0.176.0/streams/mod.ts";
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { AttributesParser } from "./attributes_parser/mod.ts";
+import { hash } from "./hash.ts";
 import { authenticate } from "./authenticate.ts";
 import {
   BadRequestException,
@@ -18,7 +19,8 @@ serve(async (req) => {
     console.info(`Authenticated as ${user.email} and played as ${playedAs}`);
 
     const attributes = await parseAttributesFileFromBody(req);
-    await validateDuplicatedGame(attributes.signature, supabaseClient);
+    const signature = hash(attributes);
+    await validateDuplicatedGame(signature, supabaseClient);
 
     const { game, showdowns } = analyseGame(attributes, playedAs);
 
@@ -33,7 +35,7 @@ serve(async (req) => {
         team_extraction: game.teamExtraction,
         user_id: user.id,
         avg_mmr: game.avgMmr,
-        signature: attributes.signature,
+        signature,
       })
       .select("id")
       .maybeSingle()
@@ -56,7 +58,7 @@ serve(async (req) => {
     return createJSONResponse({
       game,
       showdowns,
-      signature: attributes.signature,
+      signature,
     });
   } catch (e) {
     if (e instanceof ResponseException) {
