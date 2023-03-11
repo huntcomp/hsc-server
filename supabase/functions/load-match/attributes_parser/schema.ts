@@ -44,7 +44,7 @@ export function PlayerSchema(_: Record<string, string>) {
       bountyPickedUp: va.number(_, "bountypickedup"),
       downedByMe: va.number(_, "downedbyme"),
       downedMe: va.number(_, "downedme"),
-      hadBounty: fallback(va.boolean(_, "hadbounty"), false),
+      hadBounty: fallback(() => va.boolean(_, "hadbounty"), false),
       killedByMe: va.number(_, "killedbyme"),
       killedMe: va.number(_, "killedme"),
       profileid: va.string(_, "profileid"),
