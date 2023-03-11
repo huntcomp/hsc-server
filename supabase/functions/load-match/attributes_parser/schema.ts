@@ -44,7 +44,7 @@ export function PlayerSchema(_: Record<string, string>) {
       bountyPickedUp: va.number(_, "bountypickedup"),
       downedByMe: va.number(_, "downedbyme"),
       downedMe: va.number(_, "downedme"),
-      hadBounty: va.boolean(_, "hadbounty"),
+      hadBounty: fallback(va.boolean(_, "hadbounty"), false),
       killedByMe: va.number(_, "killedbyme"),
       killedMe: va.number(_, "killedme"),
       profileid: va.string(_, "profileid"),
@@ -82,10 +82,18 @@ export function TeamSchema(_: Record<string, string>) {
 
 export type Team = ReturnType<typeof TeamSchema>;
 
-export function unescapeBloodLineName(s: string) {
+function unescapeBloodLineName(s: string) {
   return s.replaceAll("&quot", '"')
     .replaceAll("&amp", "&")
     .replaceAll("&apos", "'")
     .replaceAll("&lt", "<")
     .replaceAll("&gt", ">");
+}
+
+function fallback<T>(fn: () => T, def: T): T {
+  try {
+    return fn();
+  } catch {
+    return def;
+  }
 }
